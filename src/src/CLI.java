@@ -1,4 +1,6 @@
-import java.io.File;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Scanner;
 
 public class CLI {
@@ -75,33 +77,90 @@ public class CLI {
                 "ls [-a] [-r] - List contents of directory\n" +
                 "mkdir <directory> - Create new directory\n" +
                 "rmdir <directory> - Remove directory\n" +
+                "touch <filename> - Create a new file\n" +
+                "rm <filename> - Remove a file\n" +
+                "mv <source> <destination> - Move or rename a file\n" +
+                "cat <filename> - Display the content of a file\n" +
                 "exit - Exit the CLI\n" +
                 "help - Show this help message\n";
     }
 
+    // touch command to create a new file
+    public boolean touch(String filename) {
+        File file = new File(currentDirectory, filename);
+        try {
+            if (file.createNewFile()) {
+                return true;
+            } else {
+                System.out.println("touch: file already exists: " + filename);
+                return false;
+            }
+        } catch (IOException e) {
+            System.out.println("touch: error creating file: " + filename);
+            return false;
+        }
+    }
+
+    // rm command to remove a file
+    public boolean rm(String filename) {
+        File file = new File(currentDirectory, filename);
+        if (file.exists()) {
+            return file.delete();
+        } else {
+            System.out.println("rm: no such file: " + filename);
+            return false;
+        }
+    }
+
+    // mv command to move or rename a file
+    public boolean mv(String source, String destination) {
+        File srcFile = new File(currentDirectory, source);
+        File destFile = new File(currentDirectory, destination);
+        if (!srcFile.exists()) {
+            System.out.println("mv: no such file: " + source);
+            return false;
+        }
+        return srcFile.renameTo(destFile);
+    }
+
+    // cat command to display the content of a file
+    public String cat(String filename) {
+        File file = new File(currentDirectory, filename);
+        if (!file.exists()) {
+            return "cat: no such file: " + filename;
+        }
+        StringBuilder content = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+        } catch (IOException e) {
+            return "cat: error reading file: " + filename;
+        }
+        return content.toString();
+    }
+
+    // Main method to run the CLI
     public static void main(String[] args) {
         CLI cli = new CLI();
         Scanner scanner = new Scanner(System.in);
         String command;
 
-        System.out.println("Welcome to the CLI. Type 'help' to see the available commands.");
+        System.out.println("Welcome to the CLI! Type 'help' for available commands.");
 
         while (true) {
-            System.out.print(cli.pwd() + "> "); // Print the current directory
-            command = scanner.nextLine().trim(); // Read user input
-
-            // Parse the command and its arguments
+            System.out.print(cli.pwd() + " $ ");
+            command = scanner.nextLine();
             String[] parts = command.split(" ");
-            String cmd = parts[0];
-            String arg = parts.length > 1 ? parts[1] : null;
 
-            switch (cmd) {
+            switch (parts[0]) {
                 case "pwd":
                     System.out.println(cli.pwd());
                     break;
                 case "cd":
-                    if (arg != null) {
-                        cli.cd(arg);
+                    if (parts.length > 1) {
+                        cli.cd(parts[1]);
                     } else {
                         System.out.println("cd: missing argument");
                     }
@@ -109,25 +168,57 @@ public class CLI {
                 case "ls":
                     boolean all = false;
                     boolean recursive = false;
-                    if (arg != null && arg.equals("-a")) {
-                        all = true;
-                    } else if (arg != null && arg.equals("-r")) {
-                        recursive = true;
+                    if (parts.length > 1) {
+                        for (int i = 1; i < parts.length; i++) {
+                            if ("-a".equals(parts[i])) {
+                                all = true;
+                            } else if ("-r".equals(parts[i])) {
+                                recursive = true;
+                            }
+                        }
                     }
                     System.out.println(cli.ls(all, recursive));
                     break;
                 case "mkdir":
-                    if (arg != null) {
-                        cli.mkdir(arg);
+                    if (parts.length > 1) {
+                        cli.mkdir(parts[1]);
                     } else {
-                        System.out.println("mkdir: missing directory name");
+                        System.out.println("mkdir: missing argument");
                     }
                     break;
                 case "rmdir":
-                    if (arg != null) {
-                        cli.rmdir(arg);
+                    if (parts.length > 1) {
+                        cli.rmdir(parts[1]);
                     } else {
-                        System.out.println("rmdir: missing directory name");
+                        System.out.println("rmdir: missing argument");
+                    }
+                    break;
+                case "touch":
+                    if (parts.length > 1) {
+                        cli.touch(parts[1]);
+                    } else {
+                        System.out.println("touch: missing argument");
+                    }
+                    break;
+                case "rm":
+                    if (parts.length > 1) {
+                        cli.rm(parts[1]);
+                    } else {
+                        System.out.println("rm: missing argument");
+                    }
+                    break;
+                case "mv":
+                    if (parts.length == 3) {
+                        cli.mv(parts[1], parts[2]);
+                    } else {
+                        System.out.println("mv: missing arguments");
+                    }
+                    break;
+                case "cat":
+                    if (parts.length > 1) {
+                        System.out.println(cli.cat(parts[1]));
+                    } else {
+                        System.out.println("cat: missing argument");
                     }
                     break;
                 case "exit":
@@ -137,8 +228,10 @@ public class CLI {
                     System.out.println(cli.help());
                     break;
                 default:
-                    System.out.println("Unknown command: " + cmd);
+                    System.out.println("Invalid command. Type 'help' for available commands.");
+                    break;
             }
         }
     }
 }
+
